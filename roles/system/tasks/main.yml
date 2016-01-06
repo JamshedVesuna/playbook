@@ -1,0 +1,95 @@
+---
+- name: install
+  apt: pkg={{ item }}
+  sudo: true
+  with_items:
+    # Text Editors
+    - vim
+    # Languages
+    - python2.7
+    - markdown
+    # Providers
+    - python-pip
+    # Networking
+    - curl
+    - ftp
+    - nmap
+    - openssh-client
+    - openssh-server
+    - ssh
+    - wget
+    - whois
+    # Version Control
+    - git
+    - rdiff-backup
+    - rsync
+    # Cli
+    - zsh
+    # Searching
+    - grep
+    - ack-grep
+    # - silversearcher-ag
+    # Processes
+    - htop
+    # Misc tools
+    - bash
+    - cron
+    - exuberant-ctags
+    - screen
+    - tar
+    - tmux
+    - xclip
+
+- pip: name={{ item }}
+  sudo: true
+  with_items:
+    - cronos
+    - ipdb
+    - ipython
+    # - numpy
+    - pep8
+   #  - psutil
+    - simple-crypt
+    - virtualenv
+
+- name: Zsh facts
+  shell: 'echo $SHELL'
+  register: default_shell
+  changed_when: False
+
+- name: Make zsh default
+  shell: chsh -s /bin/zsh
+  sudo: true
+  when: default_shell.stdout.find('/bin/zsh') == -1
+
+- name: Setup directories
+  file: path={{ home }}/{{ item }} state=directory
+  with_items:
+    - scripts
+    - tmp
+
+- name: Download dotfiles
+  git: repo=https://github.com/altoduo/dotfiles.git
+       dest={{ home }}/scripts/dotfiles
+       # track_submodules=True  # Supported by ansible >1.8
+
+- name: Dotfile sourcing
+  lineinfile: dest={{ home }}/{{ item.location }} line={{ item.line }} create=true
+  with_items:
+    - { location: '.bash_profile', line: '"source \$DOTFILES_PATH/bash/.bash_profile"' }
+    - { location: '.bashrc ',      line: '"export DOTFILES_PATH={{ home }}/scripts/dotfiles"' }
+    - { location: '.bashrc ',      line: '"source \$DOTFILES_PATH/bash/.bashrc"' }
+    - { location: '.gvimrc',       line: '"source \$DOTFILES_PATH/vim/.gvimrc"' }
+    - { location: '.tmux.conf',    line: '"source \$DOTFILES_PATH/tmux/.tmux.conf"' }
+    - { location: '.vimrc',        line: '"source \$DOTFILES_PATH/vim/.vimrc"' }
+    # TODO(jvesuna): Fix gitconfig setup.
+    - { location: '.gitconfig',    line: '"[include]"' }
+    - { location: '.gitconfig',    line: '"  path = \$DOTFILES_PATH/git/.gitconfig"' }
+    - { location: '.gitconfig',    line: '"[user]"' }
+    - { location: '.gitconfig',    line: '"  email = jamshed.vesuna@gmail.com"' }
+    - { location: '.gitconfig',    line: '"  name = JamshedVesuna"' }
+
+- name: Dotfile symlink
+  file: src={{ item.src }} dest={{ item.dest }} state=link
+  with_items:
+    - { src: '{{ home }}/scripts/dotfiles/vim/.vim', dest: '"{{ home }}/.vim"' }
